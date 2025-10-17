@@ -41,37 +41,86 @@ app.post("/webhook", async (req, res) => {
 
 const client = new Client(config);
 
-async function handleEvent(event) {
-  if (event.type !== "message" || event.message.type !== "text") return;
 
-  const userText = event.message.text;
+// --- AI返信候補を送信する部分 ---
+async function sendReplySuggestions(event, suggestions) {
+  const { casual, polite, concise } = suggestions;
 
-  // 1) AIで返信案を作る
-  const s = await makeSuggestions(userText);
-
-  // 2) Quick Reply（タップで即送信）を返す
-  const quickItems = [
-    { type: "action", action: { type: "message", label: "カジュアル", text: s.casual } },
-    { type: "action", action: { type: "message", label: "丁寧", text: s.polite } },
-    { type: "action", action: { type: "message", label: "要点", text: s.brief } }
+  const messages = [
+    {
+      type: "flex",
+      altText: "AIの返信候補です",
+      contents: {
+        type: "bubble",
+        body: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "text",
+              text: "🔮 AIの返信候補です。タップでコピーできます：",
+              weight: "bold",
+              size: "md",
+              wrap: true,
+            },
+            {
+              type: "text",
+              text: `・カジュアル：\n${casual}\n\n・丁寧：\n${polite}\n\n・要点：\n${concise}`,
+              wrap: true,
+              margin: "md",
+            },
+          ],
+        },
+        footer: {
+          type: "box",
+          layout: "horizontal",
+          contents: [
+            {
+              type: "button",
+              style: "primary",
+              color: "#00bcd4",
+              action: {
+                type: "uri",
+                label: "カジュアル📋",
+                uri: `line://msg/text/?${encodeURIComponent(casual)}`,
+              },
+            },
+            {
+              type: "button",
+              style: "secondary",
+              color: "#4CAF50",
+              action: {
+                type: "uri",
+                label: "丁寧📋",
+                uri: `line://msg/text/?${encodeURIComponent(polite)}`,
+              },
+            },
+            {
+              type: "button",
+              style: "secondary",
+              color: "#9C27B0",
+              action: {
+                type: "uri",
+                label: "要点📋",
+                uri: `line://msg/text/?${encodeURIComponent(concise)}`,
+              },
+            },
+          ],
+        },
+      },
+    },
   ];
 
-  // 3) 本文には候補を見やすく載せ、下にQuick Replyを付ける
-  const body = [
-    "🔮 AIの返信候補です。タップで送信：",
-    "",
-    `・カジュアル：\n${s.casual}`,
-    "",
-    `・丁寧：\n${s.polite}`,
-    "",
-    `・要点：\n${s.brief}`
-  ].join("\n");
-
-  await client.replyMessage(event.replyToken, {
-    type: "text",
-    text: body,
-    quickReply: { items: quickItems }
+  await fetch("https://api.line.me/v2/bot/message/reply", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.LINE_ACCESS_TOKEN}`,
+    },
+    body: JSON.stringify({ replyToken: event.replyToken, messages }),
   });
+}
+
   
 }
 
