@@ -260,7 +260,7 @@ class BybitClient:
             str(timestamp)
             + self.api_key
             + str(recv_window)
-            + json.dumps(body, separators=(",", ":"))
+            + json.dumps(body, separators=(",", ":"), sort_keys=True)
         )
         return hmac.new(
             self.api_secret.encode("utf-8"),
